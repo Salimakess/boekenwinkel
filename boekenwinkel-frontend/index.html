@@ -1,0 +1,321 @@
+
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boekenwinkel - Online Boekhandel</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            background-color: #f5f6fa;
+            color: #222;
+        }
+
+        header {
+            background-color: #243b53;
+            color: white;
+            padding: 25px;
+            text-align: center;
+        }
+
+        main {
+            max-width: 1000px;
+            margin: 30px auto;
+            padding: 20px;
+        }
+
+        #registratie {
+            background: white;
+            padding: 25px;
+            margin-bottom: 35px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px #00000015;
+        }
+
+        #registratieForm {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        #registratieForm input {
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+
+        #registratieBericht {
+            font-weight: bold;
+        }
+
+        #zoekveld {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 14px;
+            margin-bottom: 25px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        #boeken {
+            display: grid;
+            grid-template-columns:
+                repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+        }
+
+        .boek {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px #00000015;
+        }
+
+        .prijs {
+            color: #167347;
+            font-weight: bold;
+        }
+
+        button {
+            background: #243b53;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 12px 15px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #345674;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Boekenwinkel</h1>
+        <p>Welkom bij onze online boekhandel</p>
+    </header>
+
+    <main>
+
+        <!-- INSCRIPTION -->
+        <section id="registratie">
+            <h2>Registreren</h2>
+            <p>Maak een account aan bij onze boekenwinkel.</p>
+
+            <form id="registratieForm">
+                <input
+                    type="text"
+                    id="naam"
+                    placeholder="Volledige naam"
+                    required
+                >
+
+                <input
+                    type="email"
+                    id="email"
+                    placeholder="E-mailadres"
+                    required
+                >
+
+                <input
+                    type="password"
+                    id="wachtwoord"
+                    placeholder="Wachtwoord"
+                    required
+                >
+
+                <button type="submit">
+                    Account aanmaken
+                </button>
+            </form>
+
+            <p id="registratieBericht" role="status"></p>
+        </section>
+
+        <!-- CATALOGUE -->
+        <section>
+            <h2>Onze boeken</h2>
+
+            <input
+                type="text"
+                id="zoekveld"
+                placeholder="Zoek een boek op titel of auteur..."
+            >
+
+            <div id="boeken">Boeken laden...</div>
+        </section>
+
+    </main>
+
+    <script>
+        let alleBoeken = [];
+
+        // LIVRES
+        async function laadBoeken() {
+            const container =
+                document.getElementById("boeken");
+
+            try {
+                const response = await fetch(
+                    "http://localhost:8080/api/books"
+                );
+
+                if (!response.ok) {
+                    throw new Error(
+                        "Serverfout: " + response.status
+                    );
+                }
+
+                alleBoeken = await response.json();
+                toonBoeken(alleBoeken);
+
+            } catch (error) {
+                container.textContent =
+                    "Kan boeken niet laden. Controleer de backend.";
+                console.error(error);
+            }
+        }
+
+        function toonBoeken(boeken) {
+            const container =
+                document.getElementById("boeken");
+
+            container.innerHTML = "";
+
+            if (boeken.length === 0) {
+                container.textContent =
+                    "Geen boeken gevonden.";
+                return;
+            }
+
+            boeken.forEach(boek => {
+                const kaart = document.createElement("div");
+                kaart.className = "boek";
+
+                const titel = document.createElement("h3");
+                titel.textContent = boek.title;
+
+                const auteurs = document.createElement("p");
+                auteurs.textContent = "Auteur(s): " +
+                    (boek.authors || [])
+                        .map(auteur => auteur.name)
+                        .join(", ");
+
+                const beschrijving =
+                    document.createElement("p");
+                beschrijving.textContent =
+                    boek.description || "";
+
+                const prijs = document.createElement("p");
+                prijs.className = "prijs";
+                prijs.textContent =
+                    Number(boek.price).toFixed(2) + " €";
+
+                const voorraad =
+                    document.createElement("p");
+                voorraad.textContent =
+                    "Voorraad: " + boek.stock;
+
+                kaart.append(
+                    titel,
+                    auteurs,
+                    beschrijving,
+                    prijs,
+                    voorraad
+                );
+
+                container.appendChild(kaart);
+            });
+        }
+
+        // RECHERCHE
+        document.getElementById("zoekveld")
+            .addEventListener("input", function () {
+
+                const zoekterm =
+                    this.value.toLowerCase().trim();
+
+                const resultaten = alleBoeken.filter(boek => {
+                    const titel =
+                        (boek.title || "").toLowerCase();
+
+                    const auteurs = (boek.authors || [])
+                        .map(auteur => auteur.name || "")
+                        .join(" ")
+                        .toLowerCase();
+
+                    return titreOuAuteur(titel, auteurs, zoekterm);
+                });
+
+                toonBoeken(resultaten);
+            });
+
+        function titreOuAuteur(titel, auteurs, zoekterm) {
+            return titel.includes(zoekterm) ||
+                   auteurs.includes(zoekterm);
+        }
+
+        // INSCRIPTION UTILISATEUR
+        document.getElementById("registratieForm")
+            .addEventListener("submit", async function (event) {
+                event.preventDefault();
+
+                const gebruiker = {
+                    name: document.getElementById("naam")
+                        .value.trim(),
+                    email: document.getElementById("email")
+                        .value.trim(),
+                    password: document.getElementById("wachtwoord")
+                        .value
+                };
+
+                const bericht =
+                    document.getElementById("registratieBericht");
+
+                bericht.textContent = "Even wachten...";
+
+                try {
+                    const response = await fetch(
+                        "http://localhost:8080/api/users/register",
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify(gebruiker)
+                        }
+                    );
+
+                    const resultaat = await response.json();
+
+                    bericht.textContent =
+                        resultaat.message || "Onbekende fout.";
+
+                    if (response.ok) {
+                        bericht.style.color = "green";
+                        document.getElementById(
+                            "registratieForm"
+                        ).reset();
+                    } else {
+                        bericht.style.color = "red";
+                    }
+
+                } catch (error) {
+                    bericht.textContent =
+                        "Kan geen verbinding maken met de server.";
+                    bericht.style.color = "red";
+                    console.error(error);
+                }
+            });
+
+        laadBoeken();
+    </script>
+</body>
+</html>
